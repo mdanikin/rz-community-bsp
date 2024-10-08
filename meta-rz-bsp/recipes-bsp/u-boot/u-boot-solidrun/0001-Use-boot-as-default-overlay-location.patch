@@ -1,0 +1,25 @@
+From 9c1624944f26605c6d89f77bb54d7d8d0670e940 Mon Sep 17 00:00:00 2001
+From: Mikhail Anikin <mikhail.anikin@solid-run.com>
+Date: Tue, 8 Oct 2024 13:24:02 +0300
+Subject: [PATCH] Use boot as default overlay location
+
+---
+ include/configs/rzg2l-solidrun-common.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/configs/rzg2l-solidrun-common.h b/include/configs/rzg2l-solidrun-common.h
+index e973644a4a..01b09e1144 100644
+--- a/include/configs/rzg2l-solidrun-common.h
++++ b/include/configs/rzg2l-solidrun-common.h
+@@ -97,7 +97,7 @@
+     "kernel_comp_addr_r=" KERNEL_COMP_ADDR_R "\0" \
+     "kernel_comp_size=" KERNEL_COMP_SIZE "\0" \
+     "fdt_buffer_size=" FDT_BUFFER_SIZE "\0" \
+-    "fdtoverlay_dir=/renesas\0" \
++    "fdtoverlay_dir=/boot\0" \
+     "fdtoverlay_mmc_filename=" SR_MMC_BOOT_OVERLAY "\0" \
+     "fdtoverlay_sd_filename=" SR_SD_BOOT_OVERLAY "\0" \
+     "sdio_toggle=gpio toggle gpio-221; gpio toggle gpio-390; mmc rescan 1\0" \
+-- 
+2.46.2
+
