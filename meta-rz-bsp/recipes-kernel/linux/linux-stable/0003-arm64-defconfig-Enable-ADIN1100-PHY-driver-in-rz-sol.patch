@@ -1,0 +1,25 @@
+From f50c286f167afca8e794b3314eb6e95621e89f6b Mon Sep 17 00:00:00 2001
+From: Mikhail Anikin <mikhail.anikin@solid-run.com>
+Date: Tue, 8 Oct 2024 18:08:56 +0300
+Subject: [PATCH 3/3] arm64: defconfig: Enable ADIN1100 PHY driver in
+ rz-solidrun_defconfig
+
+Enable the CONFIG_ADIN1100_PHY option in the rz-solidrun_defconfig to
+provide support for the ADIN1100 Ethernet PHY used on the RZ/G2LC
+HummingBoard.
+---
+ arch/arm64/configs/rz-solidrun_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/configs/rz-solidrun_defconfig b/arch/arm64/configs/rz-solidrun_defconfig
+index eac532925840..fab209d4fff8 100644
+--- a/arch/arm64/configs/rz-solidrun_defconfig
++++ b/arch/arm64/configs/rz-solidrun_defconfig
+@@ -833,3 +833,4 @@ CONFIG_DEBUG_FS=y
+ # CONFIG_SCHED_DEBUG is not set
+ # CONFIG_FTRACE is not set
+ CONFIG_REGULATOR_RAA215300=y
++CONFIG_ADIN1100_PHY=y
+-- 
+2.46.2
+

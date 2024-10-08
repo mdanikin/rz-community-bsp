@@ -1,0 +1,577 @@
+From 3a7cb370c5335aec16d0fb9e10da48f83caa2157 Mon Sep 17 00:00:00 2001
+From: Mikhail Anikin <mikhail.anikin@solid-run.com>
+Date: Tue, 8 Oct 2024 18:04:01 +0300
+Subject: [PATCH 1/3] arm64: dts: renesas: Cleanup HummingBoard RZG2LC Device
+ tree
+
+This commit streamlines the device tree for the Renesas RZ/G2LC HummingBoard by making the following changes:
+
+- **Remove eMMC support**: Eliminate conditional code based on `SW_SD0_DEV_SEL`
+
+- **Enable HDMI interrupts**: Update the `adv7535` HDMI transmitter node by enabling interrupts
+
+- **Adjust SDHI0 configurations**: Modify SDHI0 pin settings and regulators to reflect simplified eMMC support
+
+- **Rename clock nodes for clarity**: Change `x1_clk` to `xin24m-clock` and `x2_clk` to `xin32k-clock` to better represent their functions and improve readability.
+
+- **Update Bluetooth node**: Correct the compatible string in the Bluetooth node to `"brcm,bcm43438-bt"`
+
+- **Add memory region to GPU node**: Include `memory-region = <&multimedia_cma>;` in the GPU node to define the reserved memory for GPU u
+---
+ .../dts/renesas/rz-hummingboard-common.dtsi   | 72 ++--------------
+ .../dts/renesas/rz_2l-sr-pinfunction.dtsi     | 83 +++++++++++--------
+ .../boot/dts/renesas/rz_2l-sr-som-common.dtsi | 29 +++----
+ .../boot/dts/renesas/rzg2lc-hummingboard.dts  | 19 +----
+ .../arm64/boot/dts/renesas/rzg2lc-sr-som.dtsi | 65 ++++++---------
+ 5 files changed, 95 insertions(+), 173 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/rz-hummingboard-common.dtsi b/arch/arm64/boot/dts/renesas/rz-hummingboard-common.dtsi
+index bf84d960d50d..5a5306d75c01 100644
+--- a/arch/arm64/boot/dts/renesas/rz-hummingboard-common.dtsi
++++ b/arch/arm64/boot/dts/renesas/rz-hummingboard-common.dtsi
+@@ -44,15 +44,6 @@ cam_ext_1v2: 1p2v {
+ 		regulator-always-on;
+ 	};
+ 
+-	reg_sdhi0_vmmc: regulator-sdhi0 {
+-		compatible = "regulator-fixed";
+-		regulator-name = "VSD_3V3";
+-		regulator-min-microvolt = <3300000>;
+-		regulator-max-microvolt = <3300000>;
+-		gpio = <&pinctrl RZG2L_GPIO(4, 1) GPIO_ACTIVE_LOW>;
+-		regulator-always-on;
+-	};
+-
+ 	usb0_vbus_otg: regulator-usb0-vbus-otg {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "USB0_VBUS_OTG";
+@@ -75,12 +66,6 @@ usb1_vbus: regulator-usb1-vbus {
+ 		enable-active-high;
+ 	};
+ 
+-	imx219_clk: osc25250_clk {
+-		compatible = "fixed-clock";
+-		#clock-cells = <0>;
+-		clock-frequency = <24000000>;
+-	};
+-
+ 	ar0521_clk: osc27000_clk {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+@@ -146,10 +131,12 @@ &du {
+ };
+ 
+ &ehci0 {
++	spurious-oc;
+ 	status = "okay";
+ };
+ 
+ &ehci1 {
++	spurious-oc;
+ 	status = "okay";
+ };
+ 
+@@ -172,14 +159,8 @@ adv7535: adv7535@3d {
+ 		reg = <0x3d>;
+ 		adi,dsi-lanes = <4>;
+ 		pd-gpios = <&pinctrl RZG2L_GPIO(3, 0) GPIO_ACTIVE_LOW>; // ADV_PD / DSI_EN J9-34 / P4_0
+-		/*
+-		 * With interrupts enabled and hdmi connected during boot,
+-		 * rzg2l_mipi_dsi_enable never happens and display receives no signal.
+-		 * Re-enable once issue has been resolved.
+-		 *
+-		 * interrupt-parent = <&pinctrl>;
+-		 * interrupts = <RZG2L_GPIO(9, 1) IRQ_TYPE_EDGE_FALLING>; // DSI_TS_nINT J5001-43 P9_1
+-		 */
++		interrupt-parent = <&pinctrl>;
++		interrupts = <RZG2L_GPIO(9, 1) IRQ_TYPE_EDGE_FALLING>;// DSI_TS_nINT J5001-43 P9_1
+ 		avdd-supply = <&reg_1p8v>;
+ 		dvdd-supply = <&reg_1p8v>;
+ 		pvdd-supply = <&reg_1p8v>;
+@@ -195,14 +176,14 @@ ports {
+ 
+ 			port@0 {
+ 				reg = <0>;
+-				adv7535_in: endpoint {
++				adv7535_in: endpoint@0 {
+ 					remote-endpoint = <&dsi0_out>;
+ 				};
+ 			};
+ 
+ 			port@1 {
+ 				reg = <1>;
+-				adv7535_out: endpoint {
++				adv7535_out: endpoint@1 {
+ 					remote-endpoint = <&hdmi_con_out>;
+ 				};
+ 			};
+@@ -229,27 +210,6 @@ eeprom_carrier: eeprom@57 {
+ 		pagesize = <16>;
+ 	};
+ 
+-
+-	imx219: sensor@10 {
+-		compatible = "sony,imx219";
+-		reg = <0x10>;
+-		clocks = <&imx219_clk>;
+-		clock-names = "extclk";
+-		VANA-supply = <&cam_ext_2v8>;
+-		VDIG-supply = <&cam_ext_1v8>;
+-		VDDL-supply = <&cam_ext_1v2>;
+-		status = "disabled";
+-
+-		port {
+-			imx219_0: endpoint {
+-				remote-endpoint = <&csi2_in>;
+-				clock-lanes = <0>;
+-				data-lanes = <1 2>;
+-				link-frequencies = /bits/ 64 <456000000>;
+-			};
+-		};
+-	};
+-
+ 	ar0521: sensor@36 {
+ 		compatible = "onnn,ar0521";
+ 		reg = <0x36>;
+@@ -270,11 +230,13 @@ ar0521_0: endpoint {
+ };
+ 
+ &ohci0 {
++	spurious-oc;
+ 	dr_mode = "otg";
+ 	status = "okay";
+ };
+ 
+ &ohci1 {
++	spurious-oc;
+ 	status = "okay";
+ };
+ 
+@@ -301,24 +263,6 @@ &scif1 {
+ 	status = "okay";
+ };
+ 
+-/* uSD */
+-&sdhi0 {
+-#if (!SW_SD0_DEV_SEL)
+-	pinctrl-0 = <&sdhi0_pins>;
+-	pinctrl-1 = <&sdhi0_pins_uhs>;
+-	pinctrl-names = "default", "state_uhs";
+-
+-	vmmc-supply = <&reg_sdhi0_vmmc>;
+-	vqmmc-supply = <&reg_sdhi0_vccq>;
+-	sd-uhs-sdr50;
+-	sd-uhs-sdr104;
+-	bus-width = <4>;
+-	max-frequency = <50000000>; /* 50MiB */
+-	status = "disabled";
+-#endif
+-	cd-gpios = <&pinctrl RZG2L_GPIO(47, 0) GPIO_ACTIVE_LOW>;
+-};
+-
+ &spi1 {
+ 	pinctrl-0 = <&spi1_pins>;
+ 	pinctrl-names = "default";
+diff --git a/arch/arm64/boot/dts/renesas/rz_2l-sr-pinfunction.dtsi b/arch/arm64/boot/dts/renesas/rz_2l-sr-pinfunction.dtsi
+index 81591c0d02b3..d3ae2767ded4 100644
+--- a/arch/arm64/boot/dts/renesas/rz_2l-sr-pinfunction.dtsi
++++ b/arch/arm64/boot/dts/renesas/rz_2l-sr-pinfunction.dtsi
+@@ -11,13 +11,25 @@
+ &pinctrl {
+ 	pinctrl-names = "default";
+ 
+-	gpio-sd0-dev-sel-hog {
++	sdhi0_dev_sel_gpio: gpio-sd0-dev-sel-hog {
+ 		gpio-hog;
+ 		gpios = <RZG2L_GPIO(22, 1) GPIO_ACTIVE_HIGH>;
+ 		output-high;
+ 		line-name = "gpio_sd0_dev_sel";
+ 	};
+ 
++	sdhi0_pwr_en_gpio: gpio-sd0-pwr-en-hog {
++		gpio-hog;
++		gpios = <RZG2L_GPIO(4, 1) GPIO_ACTIVE_LOW>;
++		output-high;
++		line-name = "gpio_sd0_pwr_en";
++	};
++
++	can1_pins: can1 {
++		pinmux = <RZG2L_PORT_PINMUX(40, 0, 3)>, /* TxD */
++		<RZG2L_PORT_PINMUX(40, 1, 3)>; /* RxD */
++	};
++
+ 	eth0_pins: eth0 {
+ 		pinmux = <RZG2L_PORT_PINMUX(28, 1, 1)>, /* ET0_LINKSTA */
+ 			<RZG2L_PORT_PINMUX(27, 1, 1)>, /* ET0_MDC */
+@@ -93,6 +105,11 @@ scif1_pins: scif1 {
+ 			 <RZG2L_PORT_PINMUX(41, 1, 1)>; /* RTS# */
+ 	};
+ 
++	scif1_pins_no_hw_flow: scif1_no_hw_flow {
++		pinmux = <RZG2L_PORT_PINMUX(40, 0, 1)>, /* TxD */
++		<RZG2L_PORT_PINMUX(40, 1, 1)>; /* RxD */
++	};
++
+ 	scif2_pins: scif2 {
+ 		pinmux = <RZG2L_PORT_PINMUX(48, 0, 1)>, /* TxD */
+ 			 <RZG2L_PORT_PINMUX(48, 1, 1)>, /* RxD */
+@@ -100,49 +117,60 @@ scif2_pins: scif2 {
+ 			 <RZG2L_PORT_PINMUX(48, 4, 1)>; /* RTS# */
+ 	};
+ 
+-#if SW_SD0_DEV_SEL
+-	sdhi0_emmc_pins: sd0emmc {
+-		sd0_emmc_data {
++	sdhi0_pins: sd0 {
++		sd0_data {
+ 			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3",
+-				   "SD0_DATA4", "SD0_DATA5", "SD0_DATA6", "SD0_DATA7";
+-			power-source = <1800>;
++			"SD0_DATA4", "SD0_DATA5", "SD0_DATA6", "SD0_DATA7";
++			power-source = <3300>;
+ 		};
+ 
+-		sd0_emmc_ctrl {
++		sd0_ctrl {
+ 			pins = "SD0_CLK", "SD0_CMD";
+-			power-source = <1800>;
++			power-source = <3300>;
+ 		};
+ 
+-		sd0_emmc_rst {
+-			pins = "SD0_RST#";
+-			power-source = <1800>;
++		sd0_cd {
++			pinmux = <RZG2L_PORT_PINMUX(47, 0, 2)>;
+ 		};
+ 	};
+-#else
+-	sdhi0_pins: sd0 {
++
++	sdhi0_pins_uhs: sd0 {
+ 		sd0_data {
+-			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
+-			power-source = <3300>;
++			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3",
++			"SD0_DATA4", "SD0_DATA5", "SD0_DATA6", "SD0_DATA7";
++			power-source = <1800>;
+ 		};
+ 
+ 		sd0_ctrl {
+ 			pins = "SD0_CLK", "SD0_CMD";
+-			power-source = <3300>;
++			power-source = <1800>;
++		};
++
++		sd0_cd {
++			pinmux = <RZG2L_PORT_PINMUX(47, 0, 2)>;
+ 		};
+ 	};
+ 
+-	sdhi0_pins_uhs: sd0_uhs {
++	sdhi0_pins_1_8_v: sd0_1_8_v {
+ 		sd0_data_uhs {
+-			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3";
++			pins = "SD0_DATA0", "SD0_DATA1", "SD0_DATA2", "SD0_DATA3",
++			"SD0_DATA4", "SD0_DATA5", "SD0_DATA6", "SD0_DATA7";
+ 			power-source = <1800>;
++			output-impedance-ohms = <33>;
+ 		};
+ 
+ 		sd0_ctrl_uhs {
+ 			pins = "SD0_CLK", "SD0_CMD";
+ 			power-source = <1800>;
++			output-impedance-ohms = <33>;
++		};
++
++		sd0_emmc_rst {
++			pins = "SD0_RST#";
++			power-source = <1800>;
++			output-impedance-ohms = <33>;
+ 		};
+ 	};
+-#endif
+ 
+ 	sdhi1_pins: sd1 {
+ 		sd1_data {
+@@ -156,18 +184,6 @@ sd1_ctrl {
+ 		};
+ 	};
+ 
+-	sdhi1_pins_uhs: sd1_uhs {
+-		sd1_data_uhs {
+-			pins = "SD1_DATA0", "SD1_DATA1", "SD1_DATA2", "SD1_DATA3";
+-			power-source = <1800>;
+-		};
+-
+-		sd1_ctrl_uhs {
+-			pins = "SD1_CLK", "SD1_CMD";
+-			power-source = <1800>;
+-		};
+-	};
+-
+ 	sound_clk_pins: sound_clk {
+ 		pins = "AUDIO_CLK1", "AUDIO_CLK2";
+ 		input-enable;
+@@ -193,9 +209,4 @@ ssi1_pins: ssi1 {
+ 			 <RZG2L_PORT_PINMUX(46, 2, 1)>, /* TXD */
+ 			 <RZG2L_PORT_PINMUX(46, 3, 1)>; /* RXD */
+ 	};
+-
+-    can1_pins: can1 {
+-		pinmux = <RZG2L_PORT_PINMUX(40, 0, 3)>, /* TxD */
+-			<RZG2L_PORT_PINMUX(40, 1, 3)>; /* RxD */
+-	};
+ };
+diff --git a/arch/arm64/boot/dts/renesas/rz_2l-sr-som-common.dtsi b/arch/arm64/boot/dts/renesas/rz_2l-sr-som-common.dtsi
+index da2f444d9fc1..e2e1cbdaf792 100644
+--- a/arch/arm64/boot/dts/renesas/rz_2l-sr-som-common.dtsi
++++ b/arch/arm64/boot/dts/renesas/rz_2l-sr-som-common.dtsi
+@@ -69,12 +69,12 @@ reg_1p1v: regulator-vdd-core {
+ 
+ 	reg_sdhi0_vccq: regulator-vccq-sdhi0 {
+ 		compatible = "regulator-gpio";
+-
+ 		regulator-name = "SDHI0_VCCQ";
+ 		regulator-min-microvolt = <1800000>;
+ 		regulator-max-microvolt = <3300000>;
+ 		states = <3300000 1>, <1800000 0>;
+ 		gpios = <&pinctrl RZG2L_GPIO(39, 0) GPIO_ACTIVE_HIGH>;
++		ramp_delay = <8>;
+ 		regulator-boot-on;
+ 		regulator-always-on;
+ 	};
+@@ -84,14 +84,14 @@ sdio_pwrseq: sdio-pwrseq {
+ 		reset-gpios = <&pinctrl RZG2L_GPIO(23, 1) GPIO_ACTIVE_LOW>;
+ 	};
+ 
+-	x1_clk: x1-clock {
++	x1_clk: xin24m-clock {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+ 		clock-frequency = <24000000>;
+ 	};
+ 
+ 	/* 32.768kHz crystal */
+-	x2_clk: x2-clock {
++	xin32k: xin32k-clock {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+ 		clock-frequency = <32768>;
+@@ -127,6 +127,7 @@ &extal_clk {
+ 
+ &gpu {
+ 	mali-supply = <&reg_1p1v>;
++	memory-region = <&multimedia_cma>;
+ };
+ 
+ &i2c1 {
+@@ -154,9 +155,8 @@ raa215300: raa215300@12 {
+ 		reg = <0x12>, <0x6f>;
+ 		reg-names = "main", "rtc";
+ 
+-		clocks = <&x2_clk>;
++		clocks = <&xin32k>;
+ 		clock-names = "xin";
+-		mpio2-32k-enable;
+ 	};
+ };
+ 
+@@ -194,36 +194,31 @@ &scif2 {
+ 	uart-has-rtscts;
+ 	status = "okay";
+ 
+-	bluetooth {
+-		compatible = "brcm,bcm4330-bt";
++	bluetooth: cyw {
++		max-speed = <460800>;
++		compatible = "brcm,bcm43438-bt";
+ 		shutdown-gpios = <&pinctrl RZG2L_GPIO(23, 0) GPIO_ACTIVE_HIGH>;
+ 	};
+ };
+ 
+-#if SW_SD0_DEV_SEL
+-/* eMMC */
++/* SD/eMMC */
+ &sdhi0 {
+-	pinctrl-0 = <&sdhi0_emmc_pins>;
+-	pinctrl-1 = <&sdhi0_emmc_pins>;
++	pinctrl-0 = <&sdhi0_pins_1_8_v>;
++	pinctrl-1 = <&sdhi0_pins_1_8_v>;
+ 	pinctrl-names = "default", "state_uhs";
+ 
+ 	vmmc-supply = <&reg_3p3v>;
+ 	vqmmc-supply = <&reg_sdhi0_vccq>;
+ 	bus-width = <8>;
+-	mmc-hs200-1_8v;
+-	non-removable;
+-	fixed-emmc-driver-type = <1>;
+ 	status = "okay";
+ };
+-#endif
+ 
+ /* WiFi - CYW43439 */
+ &sdhi1 {
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+ 	pinctrl-0 = <&sdhi1_pins>;
+-	pinctrl-1 = <&sdhi1_pins_uhs>;
+-	pinctrl-names = "default", "state_uhs";
++	pinctrl-names = "default";
+ 	status = "okay";
+ 
+ 	non-removable;
+diff --git a/arch/arm64/boot/dts/renesas/rzg2lc-hummingboard.dts b/arch/arm64/boot/dts/renesas/rzg2lc-hummingboard.dts
+index 9432f1bbf08a..008055641c97 100644
+--- a/arch/arm64/boot/dts/renesas/rzg2lc-hummingboard.dts
++++ b/arch/arm64/boot/dts/renesas/rzg2lc-hummingboard.dts
+@@ -8,14 +8,6 @@
+ #include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
+ 
+-/*
+- * DIP-Switch S3 setting on SoM
+- * 1 : High; 0: Low
+- * S3[1] : SW_SD0_DEV_SEL	(1: eMMC; 0: uSD)
+- */
+-
+-#define SW_SD0_DEV_SEL	1
+-
+ /dts-v1/;
+ #include "rzg2lc-sr-som.dtsi"
+ #include "rz-hummingboard-common.dtsi"
+@@ -27,8 +19,7 @@ / {
+ 
+ &adv7535 {
+ 	pd-gpios = <&pinctrl RZG2L_GPIO(40, 2) GPIO_ACTIVE_LOW>; // ADV_PD / DSI_EN J9-34 / P40_2
+-	interrupt-parent = <&pinctrl>;
+-	interrupts = <RZG2L_GPIO(42, 2) IRQ_TYPE_EDGE_FALLING>; // DSI_TS_nINT J5001-43
++	interrupts = <RZG2L_GPIO(42, 2) IRQ_TYPE_EDGE_FALLING>;// DSI_TS_nINT J5001-43 P42_2
+ };
+ 
+ &pinctrl {
+@@ -42,10 +33,6 @@ gpio-lte_on {
+ 	};
+ };
+ 
+-&reg_sdhi0_vmmc {
+-	gpio = <&pinctrl RZG2L_GPIO(18, 1) GPIO_ACTIVE_LOW>;
+-};
+-
+ &scif1 {
+ 	pinctrl-0 = <&scif1_pins>;
+ 	pinctrl-names = "default";
+@@ -54,10 +41,6 @@ &scif1 {
+ 	status = "okay";
+ };
+ 
+-&sdhi0 {
+-	cd-gpios = <&pinctrl RZG2L_GPIO(18, 0) GPIO_ACTIVE_LOW>;
+-};
+-
+ &usb0_vbus_otg {
+ 	gpio = <&pinctrl RZG2L_GPIO(4, 0) GPIO_ACTIVE_HIGH>;
+ 	gpio-open-drain;
+diff --git a/arch/arm64/boot/dts/renesas/rzg2lc-sr-som.dtsi b/arch/arm64/boot/dts/renesas/rzg2lc-sr-som.dtsi
+index 2a9ed1130a92..9a8ee6874220 100644
+--- a/arch/arm64/boot/dts/renesas/rzg2lc-sr-som.dtsi
++++ b/arch/arm64/boot/dts/renesas/rzg2lc-sr-som.dtsi
+@@ -83,7 +83,6 @@ &i2c2 {
+ 	pinctrl-0 = <&i2c2_pins>;
+ 	pinctrl-names = "default";
+ 	clock-frequency = <400000>;
+-
+ 	status = "okay";
+ 
+ 	raa215300: raa215300@12 {
+@@ -91,7 +90,7 @@ raa215300: raa215300@12 {
+ 		reg = <0x12>, <0x6f>;
+ 		reg-names = "main", "rtc";
+ 
+-		clocks = <&x2_clk>;
++		clocks = <&xin32k>;
+ 		clock-names = "xin";
+ 		mpio2-32k-enable;
+ 	};
+@@ -128,52 +127,42 @@ scif2_pins: scif2 {
+ 	};
+ };
+ 
+-&reg_sdhi0_vccq {
+-	states = <3300000 0>, <1800000 1>;
+-	gpios = <&pinctrl RZG2L_GPIO(39, 0) GPIO_ACTIVE_LOW>;
++&sdhi0_pins {
++	sd0_cd {
++		pinmux = <RZG2L_PORT_PINMUX(18, 0, 1)>;
++	};
+ };
+ 
+-&sbc {
+-	pinctrl-0 = <&qspi0_pins>;
+-	pinctrl-names = "default";
+-	status = "disabled";
++&sdhi0_pins_uhs {
++	sd0_cd {
++		pinmux = <RZG2L_PORT_PINMUX(18, 0, 1)>;
++	};
+ };
+ 
+-&scif2 {
+-	/delete-property/ dmas;
+-	/delete-property/ dma-names;
++&sdhi0_dev_sel_gpio {
++	gpios = <RZG2L_GPIO(22, 1) GPIO_ACTIVE_LOW>;
++};
+ 
+-	bluetooth {
+-		max-speed = <460800>;
+-		compatible = "brcm,bcm4330-bt";
+-		shutdown-gpios = <&pinctrl RZG2L_GPIO(23, 1) GPIO_ACTIVE_HIGH>;
+-	};
++&sdhi0_pwr_en_gpio {
++	gpios = <RZG2L_GPIO(18, 1) GPIO_ACTIVE_LOW>;
+ };
+ 
+-#if SW_SD0_DEV_SEL
+-/* eMMC */
+-&sdhi0 {
+-	pinctrl-0 = <&sdhi0_emmc_pins>;
+-	pinctrl-1 = <&sdhi0_emmc_pins>;
+-	pinctrl-names = "default", "state_uhs";
+-
+-	vmmc-supply = <&reg_3p3v>;
+-	vqmmc-supply = <&reg_sdhi0_vccq>;
+-	bus-width = <8>;
+-	mmc-hs200-1_8v;
+-	non-removable;
+-	fixed-emmc-driver-type = <1>;
+-	status = "okay";
++&reg_sdhi0_vccq {
++	regulator-min-microvolt = <1800000>;
++	regulator-max-microvolt = <1800000>;
++	
++	states = <1800000 1>;
++	gpios = <&pinctrl RZG2L_GPIO(39, 0) GPIO_ACTIVE_LOW>;
+ };
+-#endif
+ 
++&sbc {
++	pinctrl-0 = <&qspi0_pins>;
++	pinctrl-names = "default";
++	status = "disabled";
++};
+ 
+-/* WiFi - CYW43439 */
+-&sdhi1 {
+-	brcmf: wifi@1 {
+-		reg = <1>;
+-		compatible = "brcm,bcm4329-fmac";
+-	};
++&bluetooth {
++	shutdown-gpios = <&pinctrl RZG2L_GPIO(23, 1) GPIO_ACTIVE_HIGH>;
+ };
+ 
+ &sdio_pwrseq {
+-- 
+2.46.2
+

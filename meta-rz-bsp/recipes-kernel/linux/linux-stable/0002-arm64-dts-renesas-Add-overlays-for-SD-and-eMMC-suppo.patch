@@ -1,0 +1,119 @@
+From e1d23180890ed288891b4d00bd32fd56b2c5ee23 Mon Sep 17 00:00:00 2001
+From: Mikhail Anikin <mikhail.anikin@solid-run.com>
+Date: Tue, 8 Oct 2024 18:07:45 +0300
+Subject: [PATCH 2/3] arm64: dts: renesas: Add overlays for SD and eMMC support
+ on HummingBoard
+
+The SolidRun RZ/G2LC HummingBoard supports both SD card and eMMC devices
+on the SDHI0 interface. Previously, the base device tree included
+conditional code to select between SD and eMMC support, which was
+removed to simplify the configuration.
+
+This patch introduces device tree overlays to enable selection
+between SD card and eMMC support without modifying the base device tree.
+
+- Add `rzg2lc-solidrun-mmc-overlay.dtso`:
+  Configures SDHI0 for eMMC support by setting `mmc-hs200-1_8v`,
+  `non-removable`, and `fixed-emmc-driver-type = <1>`. It also sets the
+  `sdhi0_dev_sel_gpio` output to high to select the eMMC device.
+
+- Add `rzg2lc-solidrun-sd-overlay.dtso`:
+  Configures SDHI0 for SD card support by adjusting pin control settings,
+  setting `cap-sd-highspeed` and `bus-width = <4>`, modifying the
+  `reg_sdhi0_vccq` regulator to supply 3.3V, and setting the
+  `sdhi0_dev_sel_gpio` output to low to select the SD card.
+
+Update the Makefile to include the new overlay files in the build process.
+
+These overlays provide flexibility to choose the desired storage option
+at runtime, simplifying device tree maintenance and configuration.
+---
+ arch/arm64/boot/dts/renesas/Makefile          |  2 ++
+ .../renesas/rzg2lc-solidrun-mmc-overlay.dtso  | 20 +++++++++++
+ .../renesas/rzg2lc-solidrun-sd-overlay.dtso   | 34 +++++++++++++++++++
+ 3 files changed, 56 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/renesas/rzg2lc-solidrun-mmc-overlay.dtso
+ create mode 100644 arch/arm64/boot/dts/renesas/rzg2lc-solidrun-sd-overlay.dtso
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index b9b28516b79b..22095a4b2343 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -125,6 +125,8 @@ dtb-$(CONFIG_ARCH_R9A07G044) += r9a07g044l2-smarc-cru-csi-ov5645.dtbo
+ r9a07g044l2-smarc-cru-csi-ov5645-dtbs := r9a07g044l2-smarc.dtb r9a07g044l2-smarc-cru-csi-ov5645.dtbo
+ dtb-$(CONFIG_ARCH_R9A07G044) += r9a07g044l2-smarc-cru-csi-ov5645.dtb
+ dtb-$(CONFIG_ARCH_R9A07G044) += rzg2lc-hummingboard.dtb
++dtb-$(CONFIG_ARCH_R9A07G044) += rzg2lc-solidrun-mmc-overlay.dtbo
++dtb-$(CONFIG_ARCH_R9A07G044) += rzg2lc-solidrun-sd-overlay.dtbo
+ 
+ dtb-$(CONFIG_ARCH_R9A07G054) += r9a07g054l2-smarc.dtb
+ dtb-$(CONFIG_ARCH_R9A07G054) += r9a07g054l2-smarc-cru-csi-ov5645.dtbo
+diff --git a/arch/arm64/boot/dts/renesas/rzg2lc-solidrun-mmc-overlay.dtso b/arch/arm64/boot/dts/renesas/rzg2lc-solidrun-mmc-overlay.dtso
+new file mode 100644
+index 000000000000..d0ca73fda16a
+--- /dev/null
++++ b/arch/arm64/boot/dts/renesas/rzg2lc-solidrun-mmc-overlay.dtso
+@@ -0,0 +1,20 @@
++/dts-v1/;
++/plugin/;
++
++/ {
++    fragment@0 {
++        target = <&sdhi0>;
++        __overlay__ {
++            	mmc-hs200-1_8v;
++            	non-removable;
++            	fixed-emmc-driver-type = <1>;
++        };
++    };
++
++    fragment@1 {
++        target = <&sdhi0_dev_sel_gpio>;
++        __overlay__ {
++            output-high;
++        };
++    };
++};
+diff --git a/arch/arm64/boot/dts/renesas/rzg2lc-solidrun-sd-overlay.dtso b/arch/arm64/boot/dts/renesas/rzg2lc-solidrun-sd-overlay.dtso
+new file mode 100644
+index 000000000000..2e62ebde7179
+--- /dev/null
++++ b/arch/arm64/boot/dts/renesas/rzg2lc-solidrun-sd-overlay.dtso
+@@ -0,0 +1,34 @@
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
++
++/dts-v1/;
++/plugin/;
++
++/ {
++    fragment@0 {
++        target = <&sdhi0>;
++        __overlay__ {
++            pinctrl-0 = <&sdhi0_pins>;
++            pinctrl-names = "default";
++            cap-sd-highspeed;
++            bus-width = <4>;
++        };
++    };
++
++    fragment@1 {
++        target = <&reg_sdhi0_vccq>;
++        __overlay__ {
++            regulator-min-microvolt = <3300000>;
++            regulator-max-microvolt = <3300000>;
++	    states = <3300000 1>;
++	    gpios = <&pinctrl RZG2L_GPIO(39, 0) GPIO_ACTIVE_HIGH>;
++        };
++    };
++
++    fragment@2 {
++        target = <&sdhi0_dev_sel_gpio>;
++        __overlay__ {
++            output-low;
++        };
++    };
++};
+-- 
+2.46.2
+
